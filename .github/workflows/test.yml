@@ -10,9 +10,6 @@ jobs:
     strategy:
       matrix:
         go: [ '1.15', '1.16' ]
-    env:
-      PIXELA_USER: ${{ secrets.PIXELA_USER }}
-      PIXELA_TOKEN: ${{ secrets.PIXELA_TOKEN }}
     steps:
     - name: Install Go ${{ matrix.go }}
       if: success()
