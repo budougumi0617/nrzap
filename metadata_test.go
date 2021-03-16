@@ -3,6 +3,7 @@ package nrzap
 import (
 	"context"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/newrelic/go-agent/v3/integrations/logcontext"
 	"github.com/newrelic/go-agent/v3/newrelic"
 	"go.uber.org/zap"
@@ -10,7 +11,8 @@ import (
 )
 
 func TestGetNrMetadata(t *testing.T) {
-	tests := []struct {
+	t.Parallel()
+	tests := [...]struct {
 		name string
 		ctx func(*testing.T, string, string) context.Context
 		want []zap.Field
@@ -21,8 +23,8 @@ func TestGetNrMetadata(t *testing.T) {
 			want: []zap.Field{
 				zap.String(logcontext.KeyTraceID, ""),
 				zap.String(logcontext.KeySpanID, ""),
-				zap.String(logcontext.KeyEntityName, ""),
-				zap.String(logcontext.KeyEntityType, ""),
+				zap.String(logcontext.KeyEntityName, "TestGetNrMetadata/ok"), // method/appName
+				zap.String(logcontext.KeyEntityType, "SERVICE"),
 				zap.String(logcontext.KeyEntityGUID, ""),
 				zap.String(logcontext.KeyHostname, ""),
 			},
@@ -36,10 +38,19 @@ func TestGetNrMetadata(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
-			got := GetNrMetadata(tt.ctx(t, t.Name(), "txn_name"))
-			if diff := cmp.Diff(got, tt.want); diff!= "" {
-				t.Errorf("GetNrMetadata() differs: (-got +want)\n%s", diff)
+			t.Parallel()
+			got := GetNrMetadataFields(tt.ctx(t, t.Name(), "txn_name"))
+			if diff := cmp.Diff(got, tt.want,
+				cmpopts.IgnoreSliceElements(func(f zap.Field) bool {
+					if f.Key == logcontext.KeyTraceID || f.Key == logcontext.KeyHostname {
+						return true
+					}
+					return false
+				}),
+			); diff!= "" {
+				t.Errorf("GetNrMetadataFields() differs: (-got +want)\n%s", diff)
 			}
 		})
 	}
